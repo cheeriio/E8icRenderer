@@ -3,7 +3,6 @@ project(Crazy_lighting)
 
 find_package(OpenGL REQUIRED)
 find_package(SDL2 REQUIRED)
-# include_directories(${SDL2_INCLUDE_DIRS})
 
 add_subdirectory(external)
 
@@ -11,17 +10,18 @@ include_directories(
 	external/glad/include/
 	external/glm/
 	.)
-        
-set(ALL_LIBS
-	${OPENGL_LIBRARY}
-	SDL2::SDL2-static
-    glad
-    shader)
 
 add_subdirectory(common)
 
+set(ALL_LIBS
+	${OPENGL_LIBRARY}
+	${CMAKE_DL_LIBS}
+        ${SDL2_LIBRARIES}
+	glad
+	shader)
+
 add_executable(crazy_lighting src/main.cpp)
-target_link_libraries(crazy_lighting PRIVATE ${ALL_LIBS})
+target_link_libraries(crazy_lighting PUBLIC ${ALL_LIBS})
 
 add_custom_command(
    TARGET crazy_lighting POST_BUILD
