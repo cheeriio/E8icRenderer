@@ -53,8 +53,16 @@ int main (int ArgCount, char **Args)
   glBindVertexArray(VAO);
 
   GLuint tex_shader;
-  // LoadShaders(&tex_shader, "shaders/Light.vertexshader", NULL, "shaders/Light.fragmentshader");
-  LoadShaders(&tex_shader, "shaders/LightNormal.vertexshader", NULL, "shaders/LightNormal.fragmentshader");
+  LoadShaders(&tex_shader,
+              "shaders/ShadowedNormal.vertexshader",
+              NULL,
+              "shaders/ShadowedNormal.fragmentshader");
+
+  GLuint cube_shadow_shader;
+  LoadShaders(&cube_shadow_shader,
+              "shaders/CubeShadowMap.vertexshader",
+              "shaders/CubeShadowMap.geometryshader",
+              "shaders/CubeShadowMap.fragmentshader");
 
   // Loading the crate .obj model
   std::vector<glm::vec3> crate_vertices;
@@ -96,6 +104,8 @@ int main (int ArgCount, char **Args)
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
+  stbi_image_free(crate_image);
+
   GLuint TextureNormals;
   glGenTextures(1, &TextureNormals);
   glBindTexture(GL_TEXTURE_2D, TextureNormals);
@@ -103,6 +113,8 @@ int main (int ArgCount, char **Args)
 
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+  stbi_image_free(crate_normals_image);
 
 
   GLuint TextureID  = glGetUniformLocation(tex_shader, "DiffuseTextureSampler");
@@ -133,8 +145,45 @@ int main (int ArgCount, char **Args)
   glBindBuffer(GL_ARRAY_BUFFER, bitangentbuffer);
   glBufferData(GL_ARRAY_BUFFER, crate_bitangents.size() * sizeof(glm::vec3), crate_bitangents.data(), GL_STATIC_DRAW);
 
+  GLuint model_matrix_id = glGetUniformLocation(tex_shader, "M");
+  GLuint view_matrix_id = glGetUniformLocation(tex_shader, "V");
+  GLuint projection_matrix_id = glGetUniformLocation(tex_shader, "P");
+  GLuint light_id = glGetUniformLocation(tex_shader, "LightPosition");
+  GLuint position_id = glGetUniformLocation(tex_shader, "CameraPosition");
+  GLuint far_plane_id = glGetUniformLocation(tex_shader, "far_plane");
+  GLuint reverse_normals_id = glGetUniformLocation(tex_shader, "reverse_normal");
 
+
+  // Utilities for shadow mapping
+  GLuint DepthSampler = glGetUniformLocation(tex_shader, "DepthSampler");
+
+  GLuint depthMapFBO = 0;
+  glGenFramebuffers(1, &depthMapFBO);
+
+  GLuint depthCubemap;
+  glGenTextures(1, &depthCubemap);
+
+  const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
+  glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
+  for (int i = 0; i < 6; i++)
+    glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_DEPTH_COMPONENT, 
+                 SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+  glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+  glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, depthCubemap, 0);
+  glDrawBuffer(GL_NONE);
+  glReadBuffer(GL_NONE);
+  glBindFramebuffer(GL_FRAMEBUFFER, 0);
   
+  GLuint cs_model_matrix_id = glGetUniformLocation(cube_shadow_shader, "M");
+  GLuint cs_matrices_id = glGetUniformLocation(cube_shadow_shader, "ShadowMatrices");
+  GLuint cs_light_id = glGetUniformLocation(cube_shadow_shader, "LightPosition");
+  GLuint cs_far_plane_id = glGetUniformLocation(cube_shadow_shader, "far_plane");
 
   glm::mat4 Projection = glm::perspective(glm::radians(45.0f), 16.0f / 9.0f, 0.1f, 100.0f);
 	glm::vec3 initialCameraPos(7, 7, -5);
@@ -147,12 +196,6 @@ int main (int ArgCount, char **Args)
 	glm::mat4 Model = glm::mat4(1.0f);
 	glm::mat4 MVP = Projection * View * Model;
 
-  GLuint matrix_id = glGetUniformLocation(tex_shader, "MVP");
-  GLuint view_matrix_id = glGetUniformLocation(tex_shader, "V");
-	GLuint model_matrix_id = glGetUniformLocation(tex_shader, "M");
-  GLuint model__view_matrix_id = glGetUniformLocation(tex_shader, "MV");
-
-  GLuint light_id = glGetUniformLocation(tex_shader, "LightPosition");
 
   float angle = 0.0;
   float angle_light = 0.0;
@@ -193,11 +236,6 @@ int main (int ArgCount, char **Args)
       } 
     }
 
-    // Rendering the shadow map
-
-
-
-    // Rendering the box
     glm::mat4 rotateX =
 		  glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
     glm::vec4 newCameraPos = rotateX * glm::vec4(initialCameraPos, 1);
@@ -209,19 +247,99 @@ int main (int ArgCount, char **Args)
 		MVP = Projection * View * Model;
     glm::mat3 ModelView = glm::mat3(View * Model);
 
+    glm::mat4 rotateLightX =
+		  glm::rotate(glm::mat4(1.0f), glm::radians(angle_light), glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::vec4 lightPos = rotateLightX * glm::vec4(5, 5, 5, 1);
+
+    // Rendering to the depth buffer
+    float aspect = (float)SHADOW_WIDTH/(float)SHADOW_HEIGHT;
+    float near = 0.1f;
+    float far = 100.0f;
+    glm::mat4 shadowProj = glm::perspective(glm::radians(90.0f), aspect, near, far);
+
+    std::vector<glm::mat4> shadowTransforms;
+    shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(glm::vec3(lightPos), glm::vec3(lightPos) + glm::vec3( 1.0, 0.0, 0.0), glm::vec3(0.0,-1.0, 0.0)));
+    shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(glm::vec3(lightPos), glm::vec3(lightPos) + glm::vec3(-1.0, 0.0, 0.0), glm::vec3(0.0,-1.0, 0.0)));
+    shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(glm::vec3(lightPos), glm::vec3(lightPos) + glm::vec3( 0.0, 1.0, 0.0), glm::vec3(0.0, 0.0, 1.0)));
+    shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(glm::vec3(lightPos), glm::vec3(lightPos) + glm::vec3( 0.0,-1.0, 0.0), glm::vec3(0.0, 0.0,-1.0)));
+    shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(glm::vec3(lightPos), glm::vec3(lightPos) + glm::vec3( 0.0, 0.0, 1.0), glm::vec3(0.0,-1.0, 0.0)));
+    shadowTransforms.push_back(shadowProj * 
+                    glm::lookAt(glm::vec3(lightPos), glm::vec3(lightPos) + glm::vec3( 0.0, 0.0,-1.0), glm::vec3(0.0,-1.0, 0.0)));
+
+    glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    glUseProgram(cube_shadow_shader);
+
+    glUniform3f(cs_light_id, lightPos.x, lightPos.y, lightPos.z);
+    glUniform1f(cs_far_plane_id, far);
+    for(int i = 0; i < 6; i++)
+      glUniformMatrix4fv(
+        glGetUniformLocation(
+          cube_shadow_shader,
+          std::string("ShadowMatrices[" + std::to_string(i) + "]").c_str()),
+        1,
+        GL_FALSE,
+        &shadowTransforms[i][0][0]);
+
+    glEnableVertexAttribArray(0);
+    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
+    glVertexAttribPointer(
+      0,
+      3,
+      GL_FLOAT,
+      GL_FALSE,
+      0,
+      (void*)0
+    );
+
+    Model = glm::mat4(1.0f);
+    Model = glm::translate(Model, glm::vec3(4.0f, -3.5f, 0.0));
+    Model = glm::scale(Model, glm::vec3(0.5f));
+    glUniformMatrix4fv(cs_model_matrix_id, 1, GL_FALSE, &Model[0][0]);
+    glDrawArrays(GL_TRIANGLES, 0, crate_vertices.size() * 3);
+
+    Model = glm::mat4(1.0f);
+    Model = glm::translate(Model, glm::vec3(2.0f, 3.0f, 1.0));
+    Model = glm::scale(Model, glm::vec3(0.75f));
+    glUniformMatrix4fv(cs_model_matrix_id, 1, GL_FALSE, &Model[0][0]);
+    glDrawArrays(GL_TRIANGLES, 0, crate_vertices.size() * 3);
+
+    Model = glm::mat4(1.0f);
+    Model = glm::translate(Model, glm::vec3(-3.0f, -1.0f, 0.0));
+    Model = glm::scale(Model, glm::vec3(0.5f));
+    glUniformMatrix4fv(cs_model_matrix_id, 1, GL_FALSE, &Model[0][0]);
+    glDrawArrays(GL_TRIANGLES, 0, crate_vertices.size() * 3);
+
+    Model = glm::mat4(1.0f);
+    Model = glm::translate(Model, glm::vec3(-1.5f, 2.0f, -3.0));
+    Model = glm::rotate(Model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
+    Model = glm::scale(Model, glm::vec3(0.75f));
+    glUniformMatrix4fv(cs_model_matrix_id, 1, GL_FALSE, &Model[0][0]);
+    glDrawArrays(GL_TRIANGLES, 0, crate_vertices.size() * 3);
+
+    glDisableVertexAttribArray(0);
+
+
+    // Proper rendering
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glViewport(0, 0, WinWidth, WinHeight);
     glClearColor(0.5f, 0.5f, 0.5f, 0.f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glUseProgram(tex_shader);
-    glUniformMatrix4fv(matrix_id, 1, GL_FALSE, &MVP[0][0]);
-		glUniformMatrix4fv(model_matrix_id, 1, GL_FALSE, &Model[0][0]);
-		glUniformMatrix4fv(view_matrix_id, 1, GL_FALSE, &View[0][0]);
-    glUniformMatrix3fv(model__view_matrix_id, 1, GL_FALSE, &ModelView[0][0]);
 
-    glm::mat4 rotateLightX =
-		  glm::rotate(glm::mat4(1.0f), glm::radians(angle_light), glm::vec3(0.0f, 1.0f, 0.0f));
-    glm::vec4 lightPos = rotateLightX * glm::vec4(20, 0, 20, 1);
+    glUniformMatrix4fv(projection_matrix_id, 1, GL_FALSE, &Projection[0][0]);
+		glUniformMatrix4fv(view_matrix_id, 1, GL_FALSE, &View[0][0]);
     glUniform3f(light_id, lightPos.x, lightPos.y, lightPos.z);
+    glUniform3f(position_id, newCameraPos.x, newCameraPos.y, newCameraPos.z);
+    glUniform1f(far_plane_id, far);
 
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, Texture);
@@ -230,6 +348,10 @@ int main (int ArgCount, char **Args)
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, TextureNormals);
 		glUniform1i(NormalTextureID, 1);
+
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
+    glUniform1i(DepthSampler, 2);
 
     glEnableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
@@ -286,6 +408,39 @@ int main (int ArgCount, char **Args)
 			(void*)0
 		);
 
+    Model = glm::mat4(1.0f);
+    Model = glm::translate(Model, glm::vec3(-2.5f, -4.0f, -2.5f));
+    Model = glm::scale(Model, glm::vec3(8.0f));
+    glUniformMatrix4fv(model_matrix_id, 1, GL_FALSE, &Model[0][0]);
+    glDisable(GL_CULL_FACE);
+    glUniform1i(tex_shader, true);
+    glDrawArrays(GL_TRIANGLES, 0, crate_vertices.size() * 3);
+    glUniform1i(tex_shader, false);
+    glEnable(GL_CULL_FACE);
+
+    Model = glm::mat4(1.0f);
+    Model = glm::translate(Model, glm::vec3(4.0f, -3.5f, 0.0));
+    Model = glm::scale(Model, glm::vec3(0.5f));
+    glUniformMatrix4fv(model_matrix_id, 1, GL_FALSE, &Model[0][0]);
+    glDrawArrays(GL_TRIANGLES, 0, crate_vertices.size() * 3);
+
+    Model = glm::mat4(1.0f);
+    Model = glm::translate(Model, glm::vec3(2.0f, 3.0f, 1.0));
+    Model = glm::scale(Model, glm::vec3(0.75f));
+    glUniformMatrix4fv(model_matrix_id, 1, GL_FALSE, &Model[0][0]);
+    glDrawArrays(GL_TRIANGLES, 0, crate_vertices.size() * 3);
+
+    Model = glm::mat4(1.0f);
+    Model = glm::translate(Model, glm::vec3(-3.0f, -1.0f, 0.0));
+    Model = glm::scale(Model, glm::vec3(0.5f));
+    glUniformMatrix4fv(model_matrix_id, 1, GL_FALSE, &Model[0][0]);
+    glDrawArrays(GL_TRIANGLES, 0, crate_vertices.size() * 3);
+
+    Model = glm::mat4(1.0f);
+    Model = glm::translate(Model, glm::vec3(-1.5f, 2.0f, -3.0));
+    Model = glm::rotate(Model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
+    Model = glm::scale(Model, glm::vec3(0.75f));
+    glUniformMatrix4fv(model_matrix_id, 1, GL_FALSE, &Model[0][0]);
     glDrawArrays(GL_TRIANGLES, 0, crate_vertices.size() * 3);
 
     glDisableVertexAttribArray(0);
@@ -300,8 +455,18 @@ int main (int ArgCount, char **Args)
   glDeleteBuffers(1, &vertexbuffer);
 	glDeleteBuffers(1, &uvbuffer);
   glDeleteBuffers(1, &normalbuffer);
+  glDeleteBuffers(1, &tangentbuffer);
+  glDeleteBuffers(1, &bitangentbuffer);
+
 	glDeleteProgram(tex_shader);
+  glDeleteProgram(cube_shadow_shader);
+
   glDeleteTextures(1, &Texture);
+  glDeleteTextures(1, &TextureNormals);
+  glDeleteTextures(1, &depthCubemap);
+  
+  glDeleteFramebuffers(1, &depthMapFBO);
+  
 	glDeleteVertexArrays(1, &VAO);
 
   SDL_DestroyWindow(Window);
