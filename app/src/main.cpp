@@ -48,10 +48,6 @@ int main (int ArgCount, char **Args)
 	glDepthFunc(GL_LESS);
   glEnable(GL_CULL_FACE);
 
-  GLuint VAO;
-  glGenVertexArrays(1, &VAO);
-  glBindVertexArray(VAO);
-
   Shader tex_shader("shaders/ShadowedNormal.vertexshader",
                     NULL,
                     "shaders/ShadowedNormal.fragmentshader");
@@ -60,20 +56,7 @@ int main (int ArgCount, char **Args)
                             "shaders/CubeShadowMap.geometryshader",
                             "shaders/CubeShadowMap.fragmentshader");
 
-  // Loading the crate .obj model
-  std::vector<glm::vec3> crate_vertices;
-  std::vector<glm::vec2> crate_uvs;
-  std::vector<glm::vec3> crate_normals;
-  bool res = LoadOBJ("models/crate.obj", crate_vertices, crate_uvs, crate_normals);
-  if(!res) {
-    std::cout << "Failed to load the model" << std::endl;
-    return -1;
-  }
-
-  std::vector<glm::vec3> crate_tangents;
-  std::vector<glm::vec3> crate_bitangents;
-
-  ComputeTangents(crate_vertices, crate_uvs, crate_normals, crate_tangents, crate_bitangents);
+  Model CrateModel = Model::FromOBJ("models/crate.obj");
 
   // Loading the crate .png textures
   int crate_w, crate_h, crate_comp;
@@ -111,31 +94,6 @@ int main (int ArgCount, char **Args)
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
   stbi_image_free(crate_normals_image);
-
-  GLuint vertexbuffer;
-  glGenBuffers(1, &vertexbuffer);
-  glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-  glBufferData(GL_ARRAY_BUFFER, crate_vertices.size() * sizeof(glm::vec3), crate_vertices.data(), GL_STATIC_DRAW);
-
-  GLuint uvbuffer;
-	glGenBuffers(1, &uvbuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
-	glBufferData(GL_ARRAY_BUFFER, crate_uvs.size() * sizeof(glm::vec2), crate_uvs.data(), GL_STATIC_DRAW);
-
-  GLuint normalbuffer;
-  glGenBuffers(1, &normalbuffer);
-  glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
-  glBufferData(GL_ARRAY_BUFFER, crate_normals.size() * sizeof(glm::vec3), crate_normals.data(), GL_STATIC_DRAW);
-
-  GLuint tangentbuffer;
-  glGenBuffers(1, &tangentbuffer);
-  glBindBuffer(GL_ARRAY_BUFFER, tangentbuffer);
-  glBufferData(GL_ARRAY_BUFFER, crate_tangents.size() * sizeof(glm::vec3), crate_tangents.data(), GL_STATIC_DRAW);
-
-  GLuint bitangentbuffer;
-  glGenBuffers(1, &bitangentbuffer);
-  glBindBuffer(GL_ARRAY_BUFFER, bitangentbuffer);
-  glBufferData(GL_ARRAY_BUFFER, crate_bitangents.size() * sizeof(glm::vec3), crate_bitangents.data(), GL_STATIC_DRAW);
 
   tex_shader.use();
   tex_shader.set_int("DIffueTextureSampler", 0);
@@ -232,6 +190,7 @@ int main (int ArgCount, char **Args)
 		  glm::rotate(glm::mat4(1.0f), glm::radians(angle_light), glm::vec3(0.0f, 1.0f, 0.0f));
     glm::vec4 lightPos = rotateLightX * glm::vec4(5, 5, 5, 1);
 
+
     // Rendering to the depth buffer
     float aspect = (float)SHADOW_WIDTH/(float)SHADOW_HEIGHT;
     float near = 0.1f;
@@ -263,43 +222,30 @@ int main (int ArgCount, char **Args)
     for(int i = 0; i < 6; i++)
       cube_shadow_shader.set_mat4(std::string("ShadowMatrices[" + std::to_string(i) + "]").c_str(), shadowTransforms[i]);
 
-    glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-    glVertexAttribPointer(
-      0,
-      3,
-      GL_FLOAT,
-      GL_FALSE,
-      0,
-      (void*)0
-    );
-
     Model = glm::mat4(1.0f);
     Model = glm::translate(Model, glm::vec3(4.0f, -3.5f, 0.0));
     Model = glm::scale(Model, glm::vec3(0.5f));
     cube_shadow_shader.set_mat4("M", Model);
-    glDrawArrays(GL_TRIANGLES, 0, crate_vertices.size() * 3);
+    CrateModel.render();
 
     Model = glm::mat4(1.0f);
     Model = glm::translate(Model, glm::vec3(2.0f, 3.0f, 1.0));
     Model = glm::scale(Model, glm::vec3(0.75f));
     cube_shadow_shader.set_mat4("M", Model);
-    glDrawArrays(GL_TRIANGLES, 0, crate_vertices.size() * 3);
+    CrateModel.render();
 
     Model = glm::mat4(1.0f);
     Model = glm::translate(Model, glm::vec3(-3.0f, -1.0f, 0.0));
     Model = glm::scale(Model, glm::vec3(0.5f));
     cube_shadow_shader.set_mat4("M", Model);
-    glDrawArrays(GL_TRIANGLES, 0, crate_vertices.size() * 3);
+    CrateModel.render();
 
     Model = glm::mat4(1.0f);
     Model = glm::translate(Model, glm::vec3(-1.5f, 2.0f, -3.0));
     Model = glm::rotate(Model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
     Model = glm::scale(Model, glm::vec3(0.75f));
     cube_shadow_shader.set_mat4("M", Model);
-    glDrawArrays(GL_TRIANGLES, 0, crate_vertices.size() * 3);
-
-    glDisableVertexAttribArray(0);
+    CrateModel.render();
 
 
     // Proper rendering
@@ -325,68 +271,13 @@ int main (int ArgCount, char **Args)
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
 
-    glEnableVertexAttribArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer);
-    glVertexAttribPointer(
-      0,
-      3,
-      GL_FLOAT,
-      GL_FALSE,
-      0,
-      (void*)0
-    );
-
-    glEnableVertexAttribArray(1);
-    glBindBuffer(GL_ARRAY_BUFFER, uvbuffer);
-    glVertexAttribPointer(
-      1,
-      2,
-      GL_FLOAT,
-      GL_FALSE,
-      0,
-      (void*)0
-    );
-
-    glEnableVertexAttribArray(2);
-    glBindBuffer(GL_ARRAY_BUFFER, normalbuffer);
-    glVertexAttribPointer(
-        2,
-        3,
-        GL_FLOAT,
-        GL_FALSE,
-        0,
-        (void*)0
-    );
-
-    glEnableVertexAttribArray(3);
-		glBindBuffer(GL_ARRAY_BUFFER, tangentbuffer);
-		glVertexAttribPointer(
-			3,
-			3,
-			GL_FLOAT,
-			GL_FALSE,
-			0,
-			(void*)0
-		);
-
-		glEnableVertexAttribArray(4);
-		glBindBuffer(GL_ARRAY_BUFFER, bitangentbuffer);
-		glVertexAttribPointer(
-			4,
-			3,
-			GL_FLOAT,
-			GL_FALSE,
-			0,
-			(void*)0
-		);
-
     Model = glm::mat4(1.0f);
     Model = glm::translate(Model, glm::vec3(-2.5f, -4.0f, -2.5f));
     Model = glm::scale(Model, glm::vec3(8.0f));
     tex_shader.set_mat4("M", Model);
     glDisable(GL_CULL_FACE);
     tex_shader.set_int("reverse_normals", 1);
-    glDrawArrays(GL_TRIANGLES, 0, crate_vertices.size() * 3);
+    CrateModel.render();
     tex_shader.set_int("reverse_normals", 0);
     glEnable(GL_CULL_FACE);
 
@@ -394,41 +285,29 @@ int main (int ArgCount, char **Args)
     Model = glm::translate(Model, glm::vec3(4.0f, -3.5f, 0.0));
     Model = glm::scale(Model, glm::vec3(0.5f));
     tex_shader.set_mat4("M", Model);
-    glDrawArrays(GL_TRIANGLES, 0, crate_vertices.size() * 3);
+    CrateModel.render();
 
     Model = glm::mat4(1.0f);
     Model = glm::translate(Model, glm::vec3(2.0f, 3.0f, 1.0));
     Model = glm::scale(Model, glm::vec3(0.75f));
     tex_shader.set_mat4("M", Model);
-    glDrawArrays(GL_TRIANGLES, 0, crate_vertices.size() * 3);
+    CrateModel.render();
 
     Model = glm::mat4(1.0f);
     Model = glm::translate(Model, glm::vec3(-3.0f, -1.0f, 0.0));
     Model = glm::scale(Model, glm::vec3(0.5f));
     tex_shader.set_mat4("M", Model);
-    glDrawArrays(GL_TRIANGLES, 0, crate_vertices.size() * 3);
+    CrateModel.render();
 
     Model = glm::mat4(1.0f);
     Model = glm::translate(Model, glm::vec3(-1.5f, 2.0f, -3.0));
     Model = glm::rotate(Model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
     Model = glm::scale(Model, glm::vec3(0.75f));
     tex_shader.set_mat4("M", Model);
-    glDrawArrays(GL_TRIANGLES, 0, crate_vertices.size() * 3);
-
-    glDisableVertexAttribArray(0);
-    glDisableVertexAttribArray(1);
-    glDisableVertexAttribArray(2);
-    glDisableVertexAttribArray(3);
-    glDisableVertexAttribArray(4);
+    CrateModel.render();
 
     SDL_GL_SwapWindow(Window);
   }
-
-  glDeleteBuffers(1, &vertexbuffer);
-	glDeleteBuffers(1, &uvbuffer);
-  glDeleteBuffers(1, &normalbuffer);
-  glDeleteBuffers(1, &tangentbuffer);
-  glDeleteBuffers(1, &bitangentbuffer);
 
   glDeleteTextures(1, &Texture);
   glDeleteTextures(1, &TextureNormals);
@@ -436,8 +315,6 @@ int main (int ArgCount, char **Args)
   
   glDeleteFramebuffers(1, &depthMapFBO);
   
-	glDeleteVertexArrays(1, &VAO);
-
   SDL_DestroyWindow(Window);
 
   return 0;

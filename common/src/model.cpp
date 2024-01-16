@@ -163,3 +163,155 @@ void ComputeTangents(std::vector<glm::vec3>& vertices,
 
 	}
 }
+
+Model::Model(std::vector<glm::vec3>& vertices, std::vector<glm::vec2>& uvs) {
+  glGenVertexArrays(1, &VAO_);
+  glBindVertexArray(VAO_);
+  
+  glGenBuffers(1, &vertexbuffer_);
+  glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer_);
+  glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_STATIC_DRAW);
+
+	glGenBuffers(1, &uvbuffer_);
+	glBindBuffer(GL_ARRAY_BUFFER, uvbuffer_);
+	glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), uvs.data(), GL_STATIC_DRAW);
+
+  glEnableVertexAttribArray(0);
+  glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer_);
+  glVertexAttribPointer(
+    0,
+    3,
+    GL_FLOAT,
+    GL_FALSE,
+    0,
+    (void*)0
+  );
+
+  glEnableVertexAttribArray(1);
+  glBindBuffer(GL_ARRAY_BUFFER, uvbuffer_);
+  glVertexAttribPointer(
+    1,
+    2,
+    GL_FLOAT,
+    GL_FALSE,
+    0,
+    (void*)0
+  );
+
+  size_ = vertices.size();
+};
+
+Model::Model(std::vector<glm::vec3>& vertices, std::vector<glm::vec2>& uvs, std::vector<glm::vec3>& normals) {
+  glGenVertexArrays(1, &VAO_);
+  glBindVertexArray(VAO_);
+  
+  glGenBuffers(1, &vertexbuffer_);
+  glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer_);
+  glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_STATIC_DRAW);
+
+	glGenBuffers(1, &uvbuffer_);
+	glBindBuffer(GL_ARRAY_BUFFER, uvbuffer_);
+	glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), uvs.data(), GL_STATIC_DRAW);
+
+  glGenBuffers(1, &normalbuffer_);
+	glBindBuffer(GL_ARRAY_BUFFER, normalbuffer_);
+	glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec2), normals.data(), GL_STATIC_DRAW);
+
+  std::vector<glm::vec3> tangents, bitangents;
+
+  ComputeTangents(vertices, uvs, normals, tangents, bitangents);
+
+  glGenBuffers(1, &tangentbuffer_);
+	glBindBuffer(GL_ARRAY_BUFFER, tangentbuffer_);
+	glBufferData(GL_ARRAY_BUFFER, tangents.size() * sizeof(glm::vec2), tangents.data(), GL_STATIC_DRAW);
+
+  glGenBuffers(1, &bitangentbuffer_);
+	glBindBuffer(GL_ARRAY_BUFFER, bitangentbuffer_);
+	glBufferData(GL_ARRAY_BUFFER, bitangents.size() * sizeof(glm::vec2), bitangents.data(), GL_STATIC_DRAW);
+
+  glEnableVertexAttribArray(0);
+  glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer_);
+  glVertexAttribPointer(
+    0,
+    3,
+    GL_FLOAT,
+    GL_FALSE,
+    0,
+    (void*)0
+  );
+
+  glEnableVertexAttribArray(1);
+  glBindBuffer(GL_ARRAY_BUFFER, uvbuffer_);
+  glVertexAttribPointer(
+    1,
+    2,
+    GL_FLOAT,
+    GL_FALSE,
+    0,
+    (void*)0
+  );
+
+  glEnableVertexAttribArray(2);
+  glBindBuffer(GL_ARRAY_BUFFER, normalbuffer_);
+  glVertexAttribPointer(
+    2,
+    3,
+    GL_FLOAT,
+    GL_FALSE,
+    0,
+    (void*)0
+  );
+
+  glEnableVertexAttribArray(3);
+  glBindBuffer(GL_ARRAY_BUFFER, tangentbuffer_);
+  glVertexAttribPointer(
+    3,
+    3,
+    GL_FLOAT,
+    GL_FALSE,
+    0,
+    (void*)0
+  );
+
+  glEnableVertexAttribArray(4);
+  glBindBuffer(GL_ARRAY_BUFFER, bitangentbuffer_);
+  glVertexAttribPointer(
+    4,
+    3,
+    GL_FLOAT,
+    GL_FALSE,
+    0,
+    (void*)0
+  );
+
+  size_ = vertices.size();
+}
+
+Model Model::FromOBJ(const char* path) {
+  std::vector<glm::vec3> vertices, normals;
+  std::vector<glm::vec2> uvs;
+  LoadOBJ(path, vertices, uvs, normals);
+
+  if(normals.size() == 0)
+    return Model(vertices, uvs);
+  return Model(vertices, uvs, normals);
+}
+
+Model::~Model() {
+  glDeleteBuffers(1, &vertexbuffer_);
+	glDeleteBuffers(1, &uvbuffer_);
+  glDeleteBuffers(1, &normalbuffer_);
+  glDeleteBuffers(1, &tangentbuffer_);
+  glDeleteBuffers(1, &bitangentbuffer_);
+  
+	glDeleteVertexArrays(1, &VAO_);
+}
+
+void Model::render() {
+  GLint value;
+  glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &value);
+  if(value != VAO_) {
+    glBindVertexArray(VAO_);
+  }
+  glDrawArrays(GL_TRIANGLES, 0, size_ * 3);
+}
