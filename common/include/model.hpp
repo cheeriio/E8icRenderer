@@ -23,10 +23,11 @@ class Model {
   ~Model();
 
   static Model FromOBJ(const char * path);
+  static Model FlatModel(float base_x, float base_y, glm::vec3 lower_left, glm::vec3 lower_right, glm::vec3 upper_right);
   void render();
   bool is_valid();
   
- private:
+//  private:
   GLuint VAO_;
   GLuint vertexbuffer_;
   GLuint uvbuffer_;

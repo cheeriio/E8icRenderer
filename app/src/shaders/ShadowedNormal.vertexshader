@@ -2,7 +2,7 @@
 
 layout(location = 0) in vec3 vertexPosition_modelspace;
 layout(location = 1) in vec2 vertexUV;
-layout(location = 2) in vec3 vertexNormal_modelspace_;
+layout(location = 2) in vec3 vertexNormal_modelspace;
 layout(location = 3) in vec3 vertexTangent_modelspace;
 layout(location = 4) in vec3 vertexBitangent_modelspace;
 
@@ -22,13 +22,8 @@ uniform mat4 M;
 uniform mat4 V;
 uniform mat4 P;
 uniform vec3 LightPosition;
-uniform bool reverse_normals;
 
 void main() {
-	vec3 vertexNormal_modelspace = vertexNormal_modelspace_;
-	if(reverse_normals) {
-		vertexNormal_modelspace = (-1) * vertexNormal_modelspace;
-	}
 	gl_Position =  P * V * M * vec4(vertexPosition_modelspace, 1);
 	
 	Position_worldspace = (M * vec4(vertexPosition_modelspace, 1)).xyz;

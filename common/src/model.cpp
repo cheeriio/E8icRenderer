@@ -2,6 +2,7 @@
 #include <vector>
 #include <sstream>
 #include <fstream>
+#include <cmath>
 #include <model.hpp>
 
 bool LoadOBJ(const char* path,
@@ -309,9 +310,41 @@ Model::~Model() {
 
 void Model::render() {
   GLint value;
+  
   glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &value);
   if(value != VAO_) {
     glBindVertexArray(VAO_);
-  }
+  }  
   glDrawArrays(GL_TRIANGLES, 0, size_ * 3);
+}
+
+Model Model::FlatModel(float base_x, float base_y, glm::vec3 lower_left, glm::vec3 lower_right, glm::vec3 upper_right) {
+  glm::vec3 upper_left = lower_left + (upper_right - lower_right);
+
+  std::vector<glm::vec3> vertices, normals;
+  std::vector<glm::vec2> uvs;
+  
+  float uv_x_max = glm::distance(lower_left, lower_right) / base_x;
+  float uv_y_max = glm::distance(lower_right, upper_right) / base_y;
+
+  glm::vec3 normal = glm::cross(lower_right - lower_left, upper_right - lower_right);
+
+  vertices.push_back(lower_left);
+  vertices.push_back(lower_right);
+  vertices.push_back(upper_right);
+  uvs.push_back(glm::vec2(0, 0));
+  uvs.push_back(glm::vec2(uv_x_max, 0));
+  uvs.push_back(glm::vec2(uv_x_max, uv_y_max));
+
+  vertices.push_back(upper_right);
+  vertices.push_back(upper_left);
+  vertices.push_back(lower_left);
+  uvs.push_back(glm::vec2(uv_x_max, uv_y_max));
+  uvs.push_back(glm::vec2(0, uv_y_max));
+  uvs.push_back(glm::vec2(0, 0));
+
+  for(int i = 0; i < 6; i++)
+    normals.push_back(normal);
+  
+  return Model(vertices, uvs, normals);
 }
