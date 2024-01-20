@@ -9,13 +9,14 @@
 
 #include <shader.hpp>
 #include <model.hpp>
+#include <textures.hpp>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
+// Keep this header, stb_image should be implemented here.
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
-
 
 #define WinWidth 1600
 #define WinHeight 900
@@ -71,119 +72,18 @@ int main (int ArgCount, char **Args)
     Model::FlatModel(4, 4, {10, 5, 10}, {-10, 5, 10}, {-10, 5, -10})
   };
 
-  // Loading the crate .png textures
-  int w, h, comp;
-  unsigned char* crate_image = stbi_load("textures/crate.png", &w, &h, &comp, STBI_rgb_alpha);
-
-  if(crate_image == nullptr) {
-    std::cout << "Failed to load the texture" << std::endl;
-    return -1;
-  }
-
-  GLuint CrateTexture;
-  glGenTextures(1, &CrateTexture);
-  glBindTexture(GL_TEXTURE_2D, CrateTexture);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, crate_image);
-
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-  stbi_image_free(crate_image);
-
-  unsigned char* crate_normals_image = stbi_load("textures/crate_normals.png", &w, &h, &comp, STBI_rgb);
-
-  if(crate_normals_image == nullptr) {
-    std::cout << "Failed to load the texture" << std::endl;
-    return -1;
-  }
-
-  GLuint CrateTextureNormals;
-  glGenTextures(1, &CrateTextureNormals);
-  glBindTexture(GL_TEXTURE_2D, CrateTextureNormals);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, crate_normals_image);
-
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-  stbi_image_free(crate_normals_image);
-
-  unsigned char* wall_image = stbi_load("textures/wall_albedo.png", &w, &h, &comp, STBI_rgb);
-
-  if(wall_image == nullptr) {
-    std::cout << "Failed to load the texture" << std::endl;
-    return -1;
-  }
-
-  GLuint WallTexture;
-  glGenTextures(1, &WallTexture);
-  glBindTexture(GL_TEXTURE_2D, WallTexture);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, wall_image);
-
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-  stbi_image_free(wall_image);
-
-  unsigned char* wall_normal_image = stbi_load("textures/wall_normal.png", &w, &h, &comp, STBI_rgb);
-
-  if(wall_normal_image == nullptr) {
-    std::cout << "Failed to load the texture" << std::endl;
-    return -1;
-  }
-
-  GLuint WallNormalTexture;
-  glGenTextures(1, &WallNormalTexture);
-  glBindTexture(GL_TEXTURE_2D, WallNormalTexture);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, wall_normal_image);
-
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-  stbi_image_free(wall_normal_image);
-
-
-
-  unsigned char* floor_image = stbi_load("textures/floor_albedo.png", &w, &h, &comp, STBI_rgb);
-
-  if(floor_image == nullptr) {
-    std::cout << "Failed to load the texture" << std::endl;
-    return -1;
-  }
-
-  GLuint FloorTexture;
-  glGenTextures(1, &FloorTexture);
-  glBindTexture(GL_TEXTURE_2D, FloorTexture);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, floor_image);
-
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-  stbi_image_free(floor_image);
-
-  unsigned char* floor_normal_image = stbi_load("textures/floor_normal.png", &w, &h, &comp, STBI_rgb);
-
-  if(floor_normal_image == nullptr) {
-    std::cout << "Failed to load the texture" << std::endl;
-    return -1;
-  }
-
-  GLuint FloorNormalTexture;
-  glGenTextures(1, &FloorNormalTexture);
-  glBindTexture(GL_TEXTURE_2D, FloorNormalTexture);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, floor_normal_image);
-
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-  stbi_image_free(floor_normal_image);
+  std::shared_ptr<Texture> CrateTexture =
+    std::make_shared<Texture>(Texture::Format::PNG,
+                              "textures/crate_albedo.png",
+                              "textures/crate_normals.png");
+  std::shared_ptr<Texture> WallTexture =
+    std::make_shared<Texture>(Texture::Format::PNG,
+                              "textures/wall_albedo.png",
+                              "textures/wall_normal.png");
+  std::shared_ptr<Texture> FloorTexture =
+    std::make_shared<Texture>(Texture::Format::PNG,
+                              "textures/floor_albedo.png",
+                              "textures/floor_normal.png");
 
   tex_shader.use();
   tex_shader.set_int("DIffueTextureSampler", 0);
@@ -280,7 +180,6 @@ int main (int ArgCount, char **Args)
 		  glm::rotate(glm::mat4(1.0f), glm::radians(angle_light), glm::vec3(0.0f, 1.0f, 0.0f));
     glm::vec4 lightPos = rotateLightX * glm::vec4(5, 2, 5, 1);
 
-
     // Rendering to the depth buffer
     float aspect = (float)SHADOW_WIDTH/(float)SHADOW_HEIGHT;
     float near = 0.1f;
@@ -337,7 +236,6 @@ int main (int ArgCount, char **Args)
     cube_shadow_shader.set_mat4("M", Model);
     CrateModel->render();
 
-
     // Proper rendering
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glViewport(0, 0, WinWidth, WinHeight);
@@ -352,11 +250,7 @@ int main (int ArgCount, char **Args)
     tex_shader.set_vec3("CameraPosition", glm::vec3(newCameraPos.x, newCameraPos.y, newCameraPos.z));
     tex_shader.set_float("far_plane", far);
 
-		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, CrateTexture);
-
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, CrateTextureNormals);
+    CrateTexture->use();
 
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_CUBE_MAP, depthCubemap);
@@ -386,11 +280,7 @@ int main (int ArgCount, char **Args)
     tex_shader.set_mat4("M", Model);
     CrateModel->render();
 
-    glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, WallTexture);
-
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, WallNormalTexture);
+    WallTexture->use();
 
     Model = glm::mat4(1.0f);
     tex_shader.set_mat4("M", Model);
@@ -398,11 +288,7 @@ int main (int ArgCount, char **Args)
     for(int i = 0; i < 4; i++)
       walls[i]->render();
 
-    glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_2D, FloorTexture);
-
-		glActiveTexture(GL_TEXTURE1);
-		glBindTexture(GL_TEXTURE_2D, FloorNormalTexture);
+    FloorTexture->use();
 
     for(int i = 0; i < 2; i++)
       floors[i]->render();
@@ -410,15 +296,7 @@ int main (int ArgCount, char **Args)
     SDL_GL_SwapWindow(Window);
   }
 
-  glDeleteTextures(1, &CrateTexture);
-  glDeleteTextures(1, &CrateTextureNormals);
-  glDeleteTextures(1, &WallTexture);
-  glDeleteTextures(1, &WallNormalTexture);
-  glDeleteTextures(1, &FloorTexture);
-  glDeleteTextures(1, &FloorNormalTexture);
-
   glDeleteTextures(1, &depthCubemap);
-  
   glDeleteFramebuffers(1, &depthMapFBO);
   
   SDL_DestroyWindow(Window);

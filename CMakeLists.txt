@@ -19,7 +19,8 @@ set(ALL_LIBS
         ${SDL2_LIBRARIES}
 	glad
 	shader
-	model)
+	model
+	textures)
 
 add_executable(crazy_lighting app/src/main.cpp)
 target_link_libraries(crazy_lighting PUBLIC ${ALL_LIBS})
