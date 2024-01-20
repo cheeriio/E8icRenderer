@@ -50,13 +50,17 @@ int main (int ArgCount, char **Args)
 	glDepthFunc(GL_LESS);
   glEnable(GL_CULL_FACE);
 
-  Shader tex_shader("shaders/ShadowedNormal.vertexshader",
+  Shader tex_shader("shaders/ShadowedNormal.vert",
                     NULL,
-                    "shaders/ShadowedNormal.fragmentshader");
+                    "shaders/ShadowedNormal.frag");
 
-  Shader cube_shadow_shader("shaders/CubeShadowMap.vertexshader",
-                            "shaders/CubeShadowMap.geometryshader",
-                            "shaders/CubeShadowMap.fragmentshader");
+  Shader cube_shadow_shader("shaders/CubeShadowMap.vert",
+                            "shaders/CubeShadowMap.geom",
+                            "shaders/CubeShadowMap.frag");
+  
+  Shader monocolor_shader("shaders/Monocolor.vert",
+                          NULL,
+                          "shaders/Monocolor.frag");
 
   std::shared_ptr<Model> CrateModel = Model::FromOBJ("models/crate.obj");
 
@@ -72,6 +76,8 @@ int main (int ArgCount, char **Args)
     Model::FlatModel(4, 4, {10, 5, 10}, {-10, 5, 10}, {-10, 5, -10})
   };
 
+  std::shared_ptr<Model> LightbulbModel = Model::Sphere(3);
+
   std::shared_ptr<Texture> CrateTexture =
     std::make_shared<Texture>(Texture::Format::PNG,
                               "textures/crate_albedo.png",
@@ -85,8 +91,11 @@ int main (int ArgCount, char **Args)
                               "textures/floor_albedo.png",
                               "textures/floor_normal.png");
 
+  monocolor_shader.use();
+  monocolor_shader.set_vec3("Color", {1.0f, 1.0f, 1.0f});
+
   tex_shader.use();
-  tex_shader.set_int("DIffueTextureSampler", 0);
+  tex_shader.set_int("DiffuseTextureSampler", 0);
   tex_shader.set_int("NormalTextureSampler", 1);
   tex_shader.set_int("DepthSampler", 2);
 
@@ -178,7 +187,7 @@ int main (int ArgCount, char **Args)
 
     glm::mat4 rotateLightX =
 		  glm::rotate(glm::mat4(1.0f), glm::radians(angle_light), glm::vec3(0.0f, 1.0f, 0.0f));
-    glm::vec4 lightPos = rotateLightX * glm::vec4(5, 2, 5, 1);
+    glm::vec4 lightPos = rotateLightX * glm::vec4(5, 0, 5, 1);
 
     // Rendering to the depth buffer
     float aspect = (float)SHADOW_WIDTH/(float)SHADOW_HEIGHT;
@@ -292,6 +301,18 @@ int main (int ArgCount, char **Args)
 
     for(int i = 0; i < 2; i++)
       floors[i]->render();
+
+    monocolor_shader.use();
+    monocolor_shader.set_mat4("V", View);
+    monocolor_shader.set_mat4("P", Projection);
+
+    Model = glm::mat4(1.0f);
+    Model = glm::translate(Model, glm::vec3(lightPos.x, lightPos.y, lightPos.z));
+    Model = glm::scale(Model, glm::vec3(0.15));
+    
+    monocolor_shader.set_mat4("M", Model);
+
+    LightbulbModel->render();
 
     SDL_GL_SwapWindow(Window);
   }

@@ -92,11 +92,11 @@ bool LoadShaders(GLuint* id, const char* vertex_shader_path, const char* geometr
     glDetachShader(program_id, vertex_shader_id);
     glDeleteShader(vertex_shader_id);
   }
-  if(vertex_shader_path) {
+  if(geometry_shader_path) {
     glDetachShader(program_id, geometry_shader_id);
     glDeleteShader(geometry_shader_id);
   }
-  if(vertex_shader_path) {
+  if(fragment_shader_path) {
     glDetachShader(program_id, fragment_shader_id);
     glDeleteShader(fragment_shader_id);
   }

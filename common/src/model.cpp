@@ -165,17 +165,14 @@ void ComputeTangents(std::vector<glm::vec3>& vertices,
 	}
 }
 
-Model::Model(std::vector<glm::vec3>& vertices, std::vector<glm::vec2>& uvs) {
+Model::Model(std::vector<glm::vec3>& vertices, std::vector<glm::vec2>& uvs, std::vector<glm::vec3>& normals)
+  : vertexbuffer_(0), uvbuffer_(0), normalbuffer_(0), tangentbuffer_(0), bitangentbuffer_(0) {
   glGenVertexArrays(1, &VAO_);
   glBindVertexArray(VAO_);
   
   glGenBuffers(1, &vertexbuffer_);
   glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer_);
   glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_STATIC_DRAW);
-
-	glGenBuffers(1, &uvbuffer_);
-	glBindBuffer(GL_ARRAY_BUFFER, uvbuffer_);
-	glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), uvs.data(), GL_STATIC_DRAW);
 
   glEnableVertexAttribArray(0);
   glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer_);
@@ -188,104 +185,79 @@ Model::Model(std::vector<glm::vec3>& vertices, std::vector<glm::vec2>& uvs) {
     (void*)0
   );
 
-  glEnableVertexAttribArray(1);
-  glBindBuffer(GL_ARRAY_BUFFER, uvbuffer_);
-  glVertexAttribPointer(
-    1,
-    2,
-    GL_FLOAT,
-    GL_FALSE,
-    0,
-    (void*)0
-  );
+  if(uvs.size()) {
+    glGenBuffers(1, &uvbuffer_);
+    glBindBuffer(GL_ARRAY_BUFFER, uvbuffer_);
+    glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), uvs.data(), GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(1);
+    glBindBuffer(GL_ARRAY_BUFFER, uvbuffer_);
+    glVertexAttribPointer(
+      1,
+      2,
+      GL_FLOAT,
+      GL_FALSE,
+      0,
+      (void*)0
+    );
+  }
+
+  if(normals.size()) {
+    glGenBuffers(1, &normalbuffer_);
+    glBindBuffer(GL_ARRAY_BUFFER, normalbuffer_);
+    glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec2), normals.data(), GL_STATIC_DRAW);
+
+    glEnableVertexAttribArray(2);
+    glBindBuffer(GL_ARRAY_BUFFER, normalbuffer_);
+    glVertexAttribPointer(
+      2,
+      3,
+      GL_FLOAT,
+      GL_FALSE,
+      0,
+      (void*)0
+    );
+  }
+
+  if(normals.size() && uvs.size()) {
+    std::vector<glm::vec3> tangents, bitangents;
+    ComputeTangents(vertices, uvs, normals, tangents, bitangents);
+
+    glGenBuffers(1, &tangentbuffer_);
+    glBindBuffer(GL_ARRAY_BUFFER, tangentbuffer_);
+    glBufferData(GL_ARRAY_BUFFER, tangents.size() * sizeof(glm::vec2), tangents.data(), GL_STATIC_DRAW);
+
+    glGenBuffers(1, &bitangentbuffer_);
+    glBindBuffer(GL_ARRAY_BUFFER, bitangentbuffer_);
+    glBufferData(GL_ARRAY_BUFFER, bitangents.size() * sizeof(glm::vec2), bitangents.data(), GL_STATIC_DRAW);
+
+    
+
+    glEnableVertexAttribArray(3);
+    glBindBuffer(GL_ARRAY_BUFFER, tangentbuffer_);
+    glVertexAttribPointer(
+      3,
+      3,
+      GL_FLOAT,
+      GL_FALSE,
+      0,
+      (void*)0
+    );
+
+    glEnableVertexAttribArray(4);
+    glBindBuffer(GL_ARRAY_BUFFER, bitangentbuffer_);
+    glVertexAttribPointer(
+      4,
+      3,
+      GL_FLOAT,
+      GL_FALSE,
+      0,
+      (void*)0
+    );
+  }
 
   size_ = vertices.size();
-};
-
-Model::Model(std::vector<glm::vec3>& vertices, std::vector<glm::vec2>& uvs, std::vector<glm::vec3>& normals) {
-  glGenVertexArrays(1, &VAO_);
-  glBindVertexArray(VAO_);
-  
-  glGenBuffers(1, &vertexbuffer_);
-  glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer_);
-  glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_STATIC_DRAW);
-
-	glGenBuffers(1, &uvbuffer_);
-	glBindBuffer(GL_ARRAY_BUFFER, uvbuffer_);
-	glBufferData(GL_ARRAY_BUFFER, uvs.size() * sizeof(glm::vec2), uvs.data(), GL_STATIC_DRAW);
-
-  glGenBuffers(1, &normalbuffer_);
-	glBindBuffer(GL_ARRAY_BUFFER, normalbuffer_);
-	glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec2), normals.data(), GL_STATIC_DRAW);
-
-  std::vector<glm::vec3> tangents, bitangents;
-
-  ComputeTangents(vertices, uvs, normals, tangents, bitangents);
-
-  glGenBuffers(1, &tangentbuffer_);
-	glBindBuffer(GL_ARRAY_BUFFER, tangentbuffer_);
-	glBufferData(GL_ARRAY_BUFFER, tangents.size() * sizeof(glm::vec2), tangents.data(), GL_STATIC_DRAW);
-
-  glGenBuffers(1, &bitangentbuffer_);
-	glBindBuffer(GL_ARRAY_BUFFER, bitangentbuffer_);
-	glBufferData(GL_ARRAY_BUFFER, bitangents.size() * sizeof(glm::vec2), bitangents.data(), GL_STATIC_DRAW);
-
-  glEnableVertexAttribArray(0);
-  glBindBuffer(GL_ARRAY_BUFFER, vertexbuffer_);
-  glVertexAttribPointer(
-    0,
-    3,
-    GL_FLOAT,
-    GL_FALSE,
-    0,
-    (void*)0
-  );
-
-  glEnableVertexAttribArray(1);
-  glBindBuffer(GL_ARRAY_BUFFER, uvbuffer_);
-  glVertexAttribPointer(
-    1,
-    2,
-    GL_FLOAT,
-    GL_FALSE,
-    0,
-    (void*)0
-  );
-
-  glEnableVertexAttribArray(2);
-  glBindBuffer(GL_ARRAY_BUFFER, normalbuffer_);
-  glVertexAttribPointer(
-    2,
-    3,
-    GL_FLOAT,
-    GL_FALSE,
-    0,
-    (void*)0
-  );
-
-  glEnableVertexAttribArray(3);
-  glBindBuffer(GL_ARRAY_BUFFER, tangentbuffer_);
-  glVertexAttribPointer(
-    3,
-    3,
-    GL_FLOAT,
-    GL_FALSE,
-    0,
-    (void*)0
-  );
-
-  glEnableVertexAttribArray(4);
-  glBindBuffer(GL_ARRAY_BUFFER, bitangentbuffer_);
-  glVertexAttribPointer(
-    4,
-    3,
-    GL_FLOAT,
-    GL_FALSE,
-    0,
-    (void*)0
-  );
-
-  size_ = vertices.size();
+  my_v = vertices;
 }
 
 Model::Model(Model &&other)
@@ -340,8 +312,6 @@ std::shared_ptr<Model> Model::FromOBJ(const char* path) {
   std::vector<glm::vec2> uvs;
   LoadOBJ(path, vertices, uvs, normals);
 
-  if(normals.size() == 0)
-    return std::make_shared<Model>(vertices, uvs);
   return std::make_shared<Model>(vertices, uvs, normals);
 }
 
@@ -394,4 +364,85 @@ std::shared_ptr<Model> Model::FlatModel(float base_x, float base_y, glm::vec3 lo
     normals.push_back(normal);
 
   return std::make_shared<Model>(vertices, uvs, normals);
+}
+
+namespace {
+
+std::vector<glm::vec3> generate_icosahedron() {
+  float phi = (1.0f + sqrt(5.0f)) * 0.5f;
+  float a = 1.0f;
+  float b = 1.0f / phi;
+
+  glm::vec3 v1 = glm::normalize(glm::vec3(0, b, -a));
+  glm::vec3 v2 = glm::normalize(glm::vec3(b, a, 0));
+  glm::vec3 v3 = glm::normalize(glm::vec3(-b, a, 0));
+  glm::vec3 v4 = glm::normalize(glm::vec3(0, b, a));
+  glm::vec3 v5 = glm::normalize(glm::vec3(0, -b, a));
+  glm::vec3 v6 = glm::normalize(glm::vec3(-a, 0, b));
+  glm::vec3 v7 = glm::normalize(glm::vec3(0, -b, -a));
+  glm::vec3 v8 = glm::normalize(glm::vec3(a, 0, -b));
+  glm::vec3 v9 = glm::normalize(glm::vec3(a, 0, b));
+  glm::vec3 v10 = glm::normalize(glm::vec3(-a, 0, -b));
+  glm::vec3 v11 = glm::normalize(glm::vec3(b, -a, 0));
+  glm::vec3 v12 = glm::normalize(glm::vec3(-b, -a, 0));
+
+  std::vector<glm::vec3> v = {
+    v3, v2, v1,
+    v2, v3, v4,
+    v6, v5, v4,
+    v5, v9, v4,
+    v8, v7, v1,
+    v7, v10, v1,
+    v12, v11, v5,
+    v11, v12, v7,
+    v10, v6, v3,
+    v6, v10, v12,
+    v9, v8, v2,
+    v8, v9, v11,
+    v3, v6, v4,
+    v9, v2, v4,
+    v10, v3, v1,
+    v2, v8, v1,
+    v12, v10, v7,
+    v8, v11, v7,
+    v6, v12, v5,
+    v11, v9, v5
+  };
+
+  return v;
+}
+
+}
+
+std::shared_ptr<Model> Model::Sphere(uint16_t divisions) {
+  std::vector<glm::vec3> v = generate_icosahedron();
+  
+  while(divisions-- > 0) {
+    std::vector<glm::vec3> new_v;
+
+    for(int i = 0; i < v.size(); i += 3) {
+      glm::vec3 v1 = v[i], v2 = v[i + 1], v3 = v[i + 2];
+      glm::vec3 w1 = (v1 + v2) / 2.0f,
+                w2 = (v2 + v3) / 2.0f,
+                w3 = (v3 + v1) / 2.0f;
+      w1 = glm::normalize(w1);
+      w2 = glm::normalize(w2);
+      w3 = glm::normalize(w3);
+      std::vector<glm::vec3> new_triangles = {
+        v1, w1, w3,
+        w1, v2, w2,
+        w1, w2, w3,
+        w2, v3, w3
+      };
+
+      for(auto vertex : new_triangles)
+        new_v.push_back(vertex);
+    }
+
+    v = new_v;
+  }
+
+  std::vector<glm::vec2> uv;
+  std::vector<glm::vec3> normals;
+  return std::make_shared<Model>(v, uv, normals);
 }

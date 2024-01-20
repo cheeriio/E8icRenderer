@@ -19,7 +19,6 @@ void ComputeTangents(std::vector<glm::vec3>& vertices,
 
 class Model {
  public:
-  Model(std::vector<glm::vec3>& vertices, std::vector<glm::vec2>& uvs);
   Model(std::vector<glm::vec3>& vertices, std::vector<glm::vec2>& uvs, std::vector<glm::vec3>& normals);
   
   Model() = delete;
@@ -33,6 +32,7 @@ class Model {
 
   static std::shared_ptr<Model> FromOBJ(const char * path);
   static std::shared_ptr<Model> FlatModel(float base_x, float base_y, glm::vec3 lower_left, glm::vec3 lower_right, glm::vec3 upper_right);
+  static std::shared_ptr<Model> Sphere(uint16_t divisions);
   void render();
   bool is_valid();
   
@@ -45,6 +45,8 @@ class Model {
   GLuint bitangentbuffer_;
 
   unsigned int size_;
+
+  std::vector<glm::vec3> my_v;
 };
 
 #endif // _MODEL_HPP_GP_
