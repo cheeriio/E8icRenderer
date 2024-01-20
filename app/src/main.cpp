@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <vector>
+#include <memory>
 
 #include <glad/glad.h>
 #include <SDL2/SDL.h>
@@ -46,7 +47,7 @@ int main (int ArgCount, char **Args)
 
   glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
-  // glEnable(GL_CULL_FACE);
+  glEnable(GL_CULL_FACE);
 
   Shader tex_shader("shaders/ShadowedNormal.vertexshader",
                     NULL,
@@ -56,17 +57,19 @@ int main (int ArgCount, char **Args)
                             "shaders/CubeShadowMap.geometryshader",
                             "shaders/CubeShadowMap.fragmentshader");
 
-  Model CrateModel = Model::FromOBJ("models/crate.obj");
+  std::shared_ptr<Model> CrateModel = Model::FromOBJ("models/crate.obj");
 
-  Model WallOne = Model::FlatModel(2, 2, {-10, -5, 10}, {-10, -5, -10}, {-10, 5, -10});
-  Model WallTwo = Model::FlatModel(2, 2, {-10, -5, -10}, {10, -5, -10}, {10, 5, -10});
-  Model WallThree = Model::FlatModel(2, 2, {10, -5, -10}, {10, -5, 10}, {10, 5, 10});
-  Model WallFour = Model::FlatModel(2, 2, {10, -5, 10}, {-10, -5, 10}, {-10, 5, 10});
+  std::vector<std::shared_ptr<Model>> walls = {
+    Model::FlatModel(2, 2, {-10, -5, 10}, {-10, -5, -10}, {-10, 5, -10}),
+    Model::FlatModel(2, 2, {-10, -5, -10}, {10, -5, -10}, {10, 5, -10}),
+    Model::FlatModel(2, 2, {10, -5, -10}, {10, -5, 10}, {10, 5, 10}),
+    Model::FlatModel(2, 2, {10, -5, 10}, {-10, -5, 10}, {-10, 5, 10})
+  };
 
-  Model FloorOne = Model::FlatModel(4, 4, {-10, -5, 10}, {10, -5, 10}, {10, -5, -10});
-  Model FloorTwo = Model::FlatModel(4, 4, {10, 5, 10}, {-10, 5, 10}, {-10, 5, -10});
-
-  // WHY THE HELL A VECTOR OF MODELS DOESN'T RENDER PROPERLY???!!!
+  std::vector<std::shared_ptr<Model>> floors = {
+    Model::FlatModel(4, 4, {-10, -5, 10}, {10, -5, 10}, {10, -5, -10}),
+    Model::FlatModel(4, 4, {10, 5, 10}, {-10, 5, 10}, {-10, 5, -10})
+  };
 
   // Loading the crate .png textures
   int w, h, comp;
@@ -313,26 +316,26 @@ int main (int ArgCount, char **Args)
     Model = glm::translate(Model, glm::vec3(4.0f, -3.5f, 0.0));
     Model = glm::scale(Model, glm::vec3(0.5f));
     cube_shadow_shader.set_mat4("M", Model);
-    CrateModel.render();
+    CrateModel->render();
 
     Model = glm::mat4(1.0f);
     Model = glm::translate(Model, glm::vec3(2.0f, 3.0f, 1.0));
     Model = glm::scale(Model, glm::vec3(0.75f));
     cube_shadow_shader.set_mat4("M", Model);
-    CrateModel.render();
+    CrateModel->render();
 
     Model = glm::mat4(1.0f);
     Model = glm::translate(Model, glm::vec3(-3.0f, -1.0f, 0.0));
     Model = glm::scale(Model, glm::vec3(0.5f));
     cube_shadow_shader.set_mat4("M", Model);
-    CrateModel.render();
+    CrateModel->render();
 
     Model = glm::mat4(1.0f);
     Model = glm::translate(Model, glm::vec3(-1.5f, 2.0f, -3.0));
     Model = glm::rotate(Model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
     Model = glm::scale(Model, glm::vec3(0.75f));
     cube_shadow_shader.set_mat4("M", Model);
-    CrateModel.render();
+    CrateModel->render();
 
 
     // Proper rendering
@@ -362,26 +365,26 @@ int main (int ArgCount, char **Args)
     Model = glm::translate(Model, glm::vec3(-1.0f, -6.5f, -4.0));
     Model = glm::scale(Model, glm::vec3(0.5f));
     tex_shader.set_mat4("M", Model);
-    CrateModel.render();
+    CrateModel->render();
 
     Model = glm::mat4(1.0f);
     Model = glm::translate(Model, glm::vec3(2.0f, -2.0f, 3.0));
     Model = glm::scale(Model, glm::vec3(0.75f));
     tex_shader.set_mat4("M", Model);
-    CrateModel.render();
+    CrateModel->render();
 
     Model = glm::mat4(1.0f);
     Model = glm::translate(Model, glm::vec3(-3.0f, -4.0f, 3.0));
     Model = glm::scale(Model, glm::vec3(0.5f));
     tex_shader.set_mat4("M", Model);
-    CrateModel.render();
+    CrateModel->render();
 
     Model = glm::mat4(1.0f);
     Model = glm::translate(Model, glm::vec3(-4.5f, -2.0f, -2.0));
     Model = glm::rotate(Model, glm::radians(60.0f), glm::normalize(glm::vec3(1.0, 0.0, 1.0)));
     Model = glm::scale(Model, glm::vec3(0.75f));
     tex_shader.set_mat4("M", Model);
-    CrateModel.render();
+    CrateModel->render();
 
     glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, WallTexture);
@@ -391,10 +394,9 @@ int main (int ArgCount, char **Args)
 
     Model = glm::mat4(1.0f);
     tex_shader.set_mat4("M", Model);
-    WallOne.render();
-    WallTwo.render();
-    WallThree.render();
-    WallFour.render();
+
+    for(int i = 0; i < 4; i++)
+      walls[i]->render();
 
     glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, FloorTexture);
@@ -402,8 +404,8 @@ int main (int ArgCount, char **Args)
 		glActiveTexture(GL_TEXTURE1);
 		glBindTexture(GL_TEXTURE_2D, FloorNormalTexture);
 
-    FloorOne.render();
-    FloorTwo.render();
+    for(int i = 0; i < 2; i++)
+      floors[i]->render();
 
     SDL_GL_SwapWindow(Window);
   }

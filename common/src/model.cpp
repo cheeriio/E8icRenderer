@@ -288,14 +288,61 @@ Model::Model(std::vector<glm::vec3>& vertices, std::vector<glm::vec2>& uvs, std:
   size_ = vertices.size();
 }
 
-Model Model::FromOBJ(const char* path) {
+Model::Model(Model &&other)
+{
+  size_ = other.size_;
+  VAO_ = other.VAO_;
+  vertexbuffer_ = other.vertexbuffer_;
+  uvbuffer_ = other.uvbuffer_;
+  normalbuffer_ = other.normalbuffer_;
+  tangentbuffer_ = other.tangentbuffer_;
+  bitangentbuffer_ = other.bitangentbuffer_;
+  other.size_ = 0;
+  other.VAO_ = 0;
+  other.vertexbuffer_ = 0;
+  other.uvbuffer_ = 0;
+  other.normalbuffer_ = 0;
+  other.tangentbuffer_ = 0;
+  other.bitangentbuffer_ = 0;
+}
+
+Model& Model::operator=(Model &&other)
+{
+  if(this == &other)
+    return *this;
+  
+  glDeleteBuffers(1, &vertexbuffer_);
+	glDeleteBuffers(1, &uvbuffer_);
+  glDeleteBuffers(1, &normalbuffer_);
+  glDeleteBuffers(1, &tangentbuffer_);
+  glDeleteBuffers(1, &bitangentbuffer_);
+	glDeleteVertexArrays(1, &VAO_);
+
+  size_ = other.size_;
+  VAO_ = other.VAO_;
+  vertexbuffer_ = other.vertexbuffer_;
+  uvbuffer_ = other.uvbuffer_;
+  normalbuffer_ = other.normalbuffer_;
+  tangentbuffer_ = other.tangentbuffer_;
+  bitangentbuffer_ = other.bitangentbuffer_;
+  other.size_ = 0;
+  other.VAO_ = 0;
+  other.vertexbuffer_ = 0;
+  other.uvbuffer_ = 0;
+  other.normalbuffer_ = 0;
+  other.tangentbuffer_ = 0;
+  other.bitangentbuffer_ = 0;
+  return *this;
+}
+
+std::shared_ptr<Model> Model::FromOBJ(const char* path) {
   std::vector<glm::vec3> vertices, normals;
   std::vector<glm::vec2> uvs;
   LoadOBJ(path, vertices, uvs, normals);
 
   if(normals.size() == 0)
-    return Model(vertices, uvs);
-  return Model(vertices, uvs, normals);
+    return std::make_shared<Model>(vertices, uvs);
+  return std::make_shared<Model>(vertices, uvs, normals);
 }
 
 Model::~Model() {
@@ -318,7 +365,7 @@ void Model::render() {
   glDrawArrays(GL_TRIANGLES, 0, size_ * 3);
 }
 
-Model Model::FlatModel(float base_x, float base_y, glm::vec3 lower_left, glm::vec3 lower_right, glm::vec3 upper_right) {
+std::shared_ptr<Model> Model::FlatModel(float base_x, float base_y, glm::vec3 lower_left, glm::vec3 lower_right, glm::vec3 upper_right) {
   glm::vec3 upper_left = lower_left + (upper_right - lower_right);
 
   std::vector<glm::vec3> vertices, normals;
@@ -345,6 +392,6 @@ Model Model::FlatModel(float base_x, float base_y, glm::vec3 lower_left, glm::ve
 
   for(int i = 0; i < 6; i++)
     normals.push_back(normal);
-  
-  return Model(vertices, uvs, normals);
+
+  return std::make_shared<Model>(vertices, uvs, normals);
 }
