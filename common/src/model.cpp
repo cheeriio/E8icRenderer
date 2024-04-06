@@ -25,7 +25,7 @@ bool LoadOBJ(const char* path,
   sstr << ifs.rdbuf();
   ifs.close();
 
-  bool has_normals = false;
+  bool has_normals = false, has_uvs = false;
   bool uses_quads = false;
   bool first_face = true;
 
@@ -39,6 +39,7 @@ bool LoadOBJ(const char* path,
       line_sstr >> vertex.x >> vertex.y >> vertex.z;
       vertices.push_back(vertex);
     } else if(header == "vt") {
+      has_uvs = true;
       glm::vec2 uv;
       line_sstr >> uv.x >> uv.y;
       uvs.push_back(glm::vec2(uv.x, 1.0 - uv.y));
@@ -66,7 +67,9 @@ bool LoadOBJ(const char* path,
 
       int limit = uses_quads ? 4 : 3;
       for(int i = 0; i < limit; i++) {
-        line_sstr >> vertexIndex[i] >> ch >> uvIndex[i];
+        line_sstr >> vertexIndex[i];
+        if(has_uvs)
+          line_sstr >> ch >> uvIndex[i];
         if(has_normals)
           line_sstr >> ch >> normalIndex[i];
       }
@@ -74,9 +77,11 @@ bool LoadOBJ(const char* path,
       vertexIndices.push_back(vertexIndex[0]);
       vertexIndices.push_back(vertexIndex[1]);
       vertexIndices.push_back(vertexIndex[2]);
-      uvIndices.push_back(uvIndex[0]);
-      uvIndices.push_back(uvIndex[1]);
-      uvIndices.push_back(uvIndex[2]);
+      if(has_uvs) {
+        uvIndices.push_back(uvIndex[0]);
+        uvIndices.push_back(uvIndex[1]);
+        uvIndices.push_back(uvIndex[2]);
+      }
       if(has_normals) {
         normalIndices.push_back(normalIndex[0]);
         normalIndices.push_back(normalIndex[1]);
@@ -87,9 +92,11 @@ bool LoadOBJ(const char* path,
         vertexIndices.push_back(vertexIndex[2]);
         vertexIndices.push_back(vertexIndex[3]);
         vertexIndices.push_back(vertexIndex[0]);
-        uvIndices.push_back(uvIndex[2]);
-        uvIndices.push_back(uvIndex[3]);
-        uvIndices.push_back(uvIndex[0]);
+        if(has_uvs) {
+          uvIndices.push_back(uvIndex[2]);
+          uvIndices.push_back(uvIndex[3]);
+          uvIndices.push_back(uvIndex[0]);
+        }
         if(has_normals) {
           normalIndices.push_back(normalIndex[2]);
           normalIndices.push_back(normalIndex[3]);
@@ -100,14 +107,16 @@ bool LoadOBJ(const char* path,
     }
   }
 
-  for(int i=0; i < vertexIndices.size(); i++ ) {
+  for(int i = 0; i < vertexIndices.size(); i++) {
     int vertexIndex = vertexIndices[i];
     glm::vec3 vertex = vertices[vertexIndex - 1];
     ret_vertices.push_back(vertex);
 
-    int uvIndex = uvIndices[i];
-    glm::vec2 uv = uvs[uvIndex - 1];
-    ret_uvs.push_back(uv);
+    if(has_uvs) {
+      int uvIndex = uvIndices[i];
+      glm::vec2 uv = uvs[uvIndex - 1];
+      ret_uvs.push_back(uv);
+    }
 
     if(has_normals) {
       int normalIndex = normalIndices[i];
@@ -202,22 +211,32 @@ Model::Model(std::vector<glm::vec3>& vertices, std::vector<glm::vec2>& uvs, std:
     );
   }
 
-  if(normals.size()) {
-    glGenBuffers(1, &normalbuffer_);
-    glBindBuffer(GL_ARRAY_BUFFER, normalbuffer_);
-    glBufferData(GL_ARRAY_BUFFER, normals.size() * sizeof(glm::vec2), normals.data(), GL_STATIC_DRAW);
-
-    glEnableVertexAttribArray(2);
-    glBindBuffer(GL_ARRAY_BUFFER, normalbuffer_);
-    glVertexAttribPointer(
-      2,
-      3,
-      GL_FLOAT,
-      GL_FALSE,
-      0,
-      (void*)0
-    );
+  std::vector<glm::vec3> used_normals;
+  if(!normals.size()) {
+    for(int i = 0; i < vertices.size(); i += 3) {
+      glm::vec3 normal = glm::cross(vertices[i + 1] - vertices[i], vertices[i + 2] - vertices[i + 1]);
+      normal = glm::normalize(normal);
+      for(int j = 0; j < 3; j++)
+        used_normals.push_back(normal);
+    }
+  } else {
+    used_normals = normals;
   }
+
+  glGenBuffers(1, &normalbuffer_);
+  glBindBuffer(GL_ARRAY_BUFFER, normalbuffer_);
+  glBufferData(GL_ARRAY_BUFFER, used_normals.size() * sizeof(glm::vec2), used_normals.data(), GL_STATIC_DRAW);
+
+  glEnableVertexAttribArray(2);
+  glBindBuffer(GL_ARRAY_BUFFER, normalbuffer_);
+  glVertexAttribPointer(
+    2,
+    3,
+    GL_FLOAT,
+    GL_FALSE,
+    0,
+    (void*)0
+  );
 
   if(normals.size() && uvs.size()) {
     std::vector<glm::vec3> tangents, bitangents;
